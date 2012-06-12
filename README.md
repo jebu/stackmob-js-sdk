@@ -7,7 +7,7 @@ The StackMob Javascript SDK provides an easy way for developers to access StackM
 
 To get started, visit the <a href="https://www.stackmob.com/platform/help/tutorials/html5_js_sdk" target="_blank">Getting Started</a>.
 
-**Do not link from your project to this file.  This is a living JS file and will change while in development.  Stable release versions of the JS SDK will be published officially to `static.stackmob.com/js/stackmob-js-x.x.x-min.js`**
+*Do not link from your project to this file.  This is a living JS file and will change while in development.  Stable release versions of the JS SDK will be published officially to `static.stackmob.com/js/stackmob-js-x.x.x-min.js`*
 
 # Learning
 
