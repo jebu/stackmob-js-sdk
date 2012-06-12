@@ -5,7 +5,7 @@ stackmob-js-sdk
 
 The StackMob Javascript SDK provides an easy way for developers to access StackMob's backend REST API services: datastore, file storage via S3, authentication via OAuth 2.0, and more.
 
-To get started, visit the <a href="https://www.stackmob.com/platform/help/tutorials/html5_js_sdk" target="_blank">Getting Started</a>.
+To get started, visit StackMob's <a href="https://www.stackmob.com/platform/help/tutorials/html5_js_sdk" target="_blank">Getting Started with the JS SDK</a> page.
 
 # Learning
 
