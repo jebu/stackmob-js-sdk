@@ -40,23 +40,6 @@
     return readCookie(StackMob.loggedInCookie);
   }
 
-  /**
-   * This is a utility method to parse out parameter-style strings after the hashbang.
-   * 
-   * If `text` is `#a=1&b=2&c=3`, then `parseHash(text, 'a')` returns `1`.
-   * 
-   * We use this for OAuth 2.0 to parse the redirect URL.  The redirect URL has important information after the hash (#).
-   */
-  function parseHash(text, name) {
-    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
-    var regexS = "[\\#&]" + name + "=([^&]*)";
-    var regex = new RegExp(regexS);
-    var results = regex.exec(text);
-    if (results == null)
-      return "";
-    else
-      return results[1];
-  }
 
   /**
    * The StackMob object is the core of the JS SDK.  It holds static variables, methods, and configuration information.
@@ -97,7 +80,7 @@
     apiVersion : 0,
     
     //The current version of the JS SDK.
-    sdkVersion : "0.3.0",
+    sdkVersion : "0.5.0",
 
     //This holds the application public key when the JS SDK is initialized to connect to StackMob's services via OAuth 2.0.
     publicKey : null,
@@ -222,9 +205,9 @@
               (StackMob['apiVersion'] === 0 ? StackMob
                   .getDevAPIBase()
                   : StackMob.getProdAPIBase())
-              : window.location.protocol + '//'
+              : (window.location.protocol + '//'
                   + window.location.hostname + ':'
-                  + window.location.port) + '/';
+                  + window.location.port) + '/');
     },
     
     //The JS SDK calls this to throw an error.
@@ -249,141 +232,23 @@
       return !isNaN(StackMob['publicKey'] && !StackMob['privateKey']);
     },
     
-    //Internal convenience method to help find OAuth 2.0 login forms on the page so that the JS SDK can help initalize them.
-    getLoginForms : function() {
-      var forms = document.getElementsByTagName('form');
-      return _.filter(forms, function(elem) {
-        
-        //OAuth 2.0 forms are indicated by URLs that match `/.../accessToken`
-        return elem.getAttribute('action').replace(
-            new RegExp('http://|https://', 'g'), '').match(
-            new RegExp("(/.*/accessToken)$"));
-      });
-    },
-    
-    /**
-     * On OAuth 2.0 login pages, developers should have a login form for their users to fill in.  It'll be a regular POST form.  This method auto-adds hidden fields to the form that is required for the OAuth 2.0 login including the public key, API version, and the OAuth 2.0 token type (mac).
-     * 
-     * Developers simply need to have a form like:
-     * <form action="/user/accessToken" method="POST">
-     *   <input type="text" name="username" value=""/>
-     *   <input type="password" name="password" value=""/>
-     *   <input type="submit" value="Login"/>
-     * </form>
-     * 
-     * Then somewhere on the page after the form has been rendered, the developer should call `StackMob.initOAuthForm()`.
-     */
-    initOAuthForm : function(options) {
-      options = options || {};
-      
-      function processForm(theform) {
-        //Adds a form field for the OAuth 2.0 token type.
-        var tokenType = document.createElement('input');
-        tokenType.setAttribute('name', 'token_type');
-        tokenType.setAttribute('value', 'mac');
-
-
-        //Adds a form field specifying the public key (identifying the app).
-        var apiKey = document.createElement('input');
-        apiKey.setAttribute('name', 'stackmob_api_key');
-        apiKey.setAttribute('value', StackMob['publicKey']);
-
-        //Adds a form field specifying the API version the request is for.  This is done on the client side and not inferred on the server side (base on the URL) because there could be multiple production API versions.
-        var apiVersion = document.createElement('input');
-        apiVersion.setAttribute('name', 'stackmob_api_version');
-        apiVersion.setAttribute('value', StackMob['apiVersion']);
-        
-        //We allow developers to tag login forms with `action="/user/accessToken"`, but we'll make sure they hit the correct URL here.
-        var actionURL = StackMob.getBaseURL() + StackMob.userSchema + '/accessToken'  
-        theform.setAttribute('action', actionURL);
-        
-        //Make sure the form is a POST
-        theform.setAttribute('method', 'POST');
-
-        //Add each of the generated fields to the form - make them hidden fields.
-        _.each([ tokenType, apiKey, apiVersion ], function(elem) {
-          elem.setAttribute('type', 'hidden');
-          theform.appendChild(elem);
-        });
-      }
-      
-      //If a specific form is specified by ID, only process that form.
-      var targetElem = options['id'] ? document.getElementById(options['id']) : null;
-
-      //Get the login forms on the page or the specified form.
-      var f = targetElem || this.getLoginForms();
-
-      //If we can't find the form, let the developer know!
-      if (!f) StackMob.throwError('Could not find the login form.');
-
-      //Process all forms that we find.
-      if (_.isArray(f))
-        _.each(f, processForm);
-      else
-        processForm(f);
-
-      //If we need to do anything else after we process the form, let's do so.
-      this.postInitOAuthForm(options);
-    },
-    
-    //This doesn't do anything right now, but for add-ons (like a specialized StackMob-PhoneGap JS addition), we can over-write that here.
-    postInitOAuthForm: function(options) {
-      //for phonegap overriding
-    },
-    
-    /**
-     * OAuth 2.0's login process involves a form POST with the login information, and if correct, the server redirects back to a white-listed URL under the developer's control with the user's OAuth 2.0 session credentials.  
-     * 
-     * To simplify things for the developer, the JS SDK can parse and save all of that data out of the URL and into client storage for the session's use via this method `handleOAuthCallback`.
-     * 
-     * On the redirected URL page, simply have the line: `StackMob.handleOAuthCallback()`
-     */
-    handleOAuthCallback : function(options) {
-      var options = options || {};
-      
-      //Use the current page's URL for parsing, unless one is specified via the options (for testing).
-      var theUrl = options['url'] || window.location.href;
-
-      //Get the access token, mac key, and expiration date of the credentials from the URL.
-      var accessToken = parseHash(theUrl, 'access_token');
-      var macKey = parseHash(theUrl, 'mac_key');
-      var expires = parseInt(parseHash(theUrl, 'expires'));
-      var user = parseHash(theUrl, StackMob['loginField']);
-      
-
-      //As long as we have everything we need...
-      if (_.all([ accessToken, macKey, expires ], _.identity)) {
-        
-        //For convenience, the JS SDK will save the expiration date of these credentials locally so that the developer can check for it if need be.
+    prepareCredsForSaving: function(accessToken, macKey, expires, user) {
+      //For convenience, the JS SDK will save the expiration date of these credentials locally so that the developer can check for it if need be.
         var unvalidated_expiretime = (new Date()).getTime()
-            + (expires * 1000);
-        var creds = {
+            + (expires * 1000);  
+        return {
           'oauth2_accessToken' : accessToken,
           'oauth2_macKey' : macKey,
           'oauth2_expires' : unvalidated_expiretime,
           'oauth2_user' : user
-        };
-
-        //...then let's save the OAuth credentials to local storage.
-        this.saveOAuthCredentials(creds);
-
-        //If the credentials were successfully handled, run the optional callback function.
-        if (options['success'])
-          options['success']();
-      } else {
-        
-        //If we don't have all the variables we're expecting, then the login likely failed.  Call the optional error callback and pass in the message returned from the server (via an error parameter).
-        var msg = parseHash(theUrl, 'error');
-        if (options['error'])
-          options['error'](msg);
-      }
+        };              
     },
 
     //Saves the OAuth 2.0 credentials (passed in as JSON) to client storage.
     saveOAuthCredentials : function(creds) {
       var accessToken = creds['oauth2_accessToken'];
       
-      //Because the server sends back how long the credentials are valid for and not the expiration date, we construct the expiration date on the client side.  In the scenario where a user refreshes the logged-in redirected URL page, we don't want to incorrectly generate and save a new expiration date.  If the access token is the same, then leave the expiration date as is.
+      //Because the server sends back how long the credentials are valid for and not the expiration date, we construct the expiration date on the client side.  For the login scenario where we are using OAuth 2.0's redirect URL mechanism and where a user refreshes the logged-in redirected URL page, we don't want to incorrectly generate and save a new expiration date.  If the access token is the same, then leave the expiration date as is.
       //FIXME:  don't even pass in the expires value if we dont' intend to save it.  Move this logic out to handleOAuthCallback.  This check is happening too late down the line.      
       if (this.Storage.retrieve('oauth2_accessToken') != accessToken) {
         this.Storage.persist('oauth2_expires', creds['oauth2_expires']);
@@ -440,6 +305,7 @@
       "deleteAndSave" : "DELETE",
 
       "login" : "GET",
+      "accessToken" : "POST",
       "logout" : "GET",
       "forgotPassword" : "POST",
       "loginWithTempAndSetNewPassword" : "GET",
@@ -494,7 +360,7 @@
         var script = document.createElement('script');
         script
             .setAttribute('src',
-                'http://crypto-js.googlecode.com/files/2.5.3-crypto-sha1-hmac.js');
+                'https://s3.amazonaws.com/static.stackmob.com/js/2.5.3-crypto-sha1-hmac.js');
         script.setAttribute('type', 'text/javascript');
         var loaded = false;
         var loadFunction = function() {
@@ -514,14 +380,9 @@
       this.secure = options['secure'] === true;
       this.fullURL = options['fullURL'] === true || options['phonegap'] === true || this.fullURL;
       this.ajax = options['ajax'] || this.ajax;
-
-      if (this.apiVersion === 0) {
-        this.debug = true;
-        this.urlRoot = options['urlRoot'] || this.getDevAPIBase();
-      } else {
-        this.debug = false;
-        this.urlRoot = options['urlRoot'] || this.getProdAPIBase();
-      }
+      this.debug = this.apiVersion === 0;
+      
+      this.urlRoot = options['urlRoot'] || this.getBaseURL();
 
       this.initEnd(options);
       //placeholder for any actions a developer may want to implement via _extend
@@ -701,7 +562,9 @@
                 }
 
                 //let users overwrite this if they know what they're doing
-                if (_.include([ 'PUT', 'POST' ],
+                if (StackMob.isOAuth2Mode() && method === 'accessToken') {
+                  params['contentType'] = 'application/x-www-form-urlencoded';
+                } else if (_.include([ 'PUT', 'POST' ],
                     StackMob.METHOD_MAP[method]))
                   params['contentType'] = params['contentType']
                       || 'application/json';
@@ -755,9 +618,19 @@
               function _prepareRequestBody(method, params,
                   options) {
                 options = options || {};
+                
+                function toParams(obj) {
+                  var params = _.map(_.keys(obj), function(key) { 
+                    return key + '=' + encodeURIComponent(obj[key]);
+                  });
+                  
+                  return params.join('&');
+                }
 
                 //Set the reqeuest body
-                if (params['type'] == 'POST'
+                if (StackMob.isOAuth2Mode() && method === 'accessToken' ) {
+                  params['data'] = toParams(params['data']);
+                } else if (params['type'] == 'POST'
                     || params['type'] == 'PUT') {
                   if (method == 'resetPassword'
                       || method == 'forgotPassword') {
@@ -781,18 +654,7 @@
                 } else if (params['type'] == "GET") {
                   if (!_.isEmpty(params['data'])) {
                     params['url'] += '?';
-                    var keys = _.keys(params['data']);
-
-                    var path = '';
-
-                    for ( var i = 0; i < keys.length; i++) {
-                      var key = keys[i]
-                      var value = params['data'][key];
-                      path += key + '='
-                          + encodeURIComponent(value);
-                      if (i + 1 < keys.length)
-                        path += '&';
-                    }
+                    var path = toParams(params['data']);
                     params['url'] += path;
                   }
                   delete params['data'];
@@ -812,8 +674,8 @@
 
               function _prepareAuth(method, params) {
                 if (model.schemaName == StackMob['userSchema'] && _
-                    .include([ 'create' ],
-                        method)) {//if you're creating a user
+                    .include([ 'create', 'accessToken' ],
+                        method)) {//if you're creating a user or logging in
                   return;
                   //then don't add an Authorization Header
                 }
@@ -852,7 +714,7 @@
               }
 
               //Determine what kind of call to make: GET, POST, PUT, DELETE
-              var type = StackMob.METHOD_MAP[method] || 'GET';
+              var type = options['httpVerb'] || StackMob.METHOD_MAP[method] || 'GET';
 
               //Prepare query configuration
               var params = _.extend({
@@ -1114,19 +976,34 @@
             options = options || {};
             var remember = isNaN(keepLoggedIn) ? false
                 : keepLoggedIn;
+            
             options['data'] = options['data'] || {};
+            
             options['data'][StackMob.loginField] = this
                 .get(StackMob.loginField);
             options['data'][StackMob.passwordField] = this
                 .get(StackMob.passwordField);
             var user = this;
 
-            options['stackmob_onlogin'] = function() {
+            options['stackmob_onaccessToken'] = function(result) {
+              if (StackMob.isOAuth2Mode()) {
+                var oauth2Creds = result;
+                
+                var accessToken = oauth2Creds['access_token'];
+                var macKey = oauth2Creds['mac_key'];
+                var expires = oauth2Creds['expires_in'];
+                
+                var creds = StackMob.prepareCredsForSaving(accessToken, macKey, expires, user.get(StackMob.loginField));
+  
+                //...then let's save the OAuth credentials to local storage.
+                StackMob.saveOAuthCredentials(creds);
+              }
+              
               StackMob.Storage.persist(StackMob.loggedInUserKey,
-                  user.get(StackMob['loginField']));
+                    user.get(StackMob['loginField']));
             };
 
-            (this.sync || Backbone.sync).call(this, "login", this,
+            (this.sync || Backbone.sync).call(this, (StackMob.isOAuth2Mode() ? 'accessToken' : 'login'), this,
                 options);
           },
           logout : function(options) {
@@ -1394,19 +1271,28 @@
           'sencha' : function(model, params, method) {
             var success = params['success'];
             var defaultSuccess = function(response, options) {
+              
+              var result = response && response.responseText ? JSON.parse(response.responseText) : null;
 
               if (_.isFunction(params['stackmob_on' + method]))
-                params['stackmob_on' + method]();
+                params['stackmob_on' + method](result);
 
-              if (response.responseText) {
-                var result = JSON.parse(response.responseText);
+              if (result) {
+                
                 model.clear();
 
-                if (params["stackmob_count"] === true) {
-                  success(response);
-                } else if (!model.set(result))
-                  return false;
-                success(model);
+                if (StackMob.isOAuth2Mode() && method === 'accessToken' && result['stackmob']) {
+                  //If we have "stackmob" in the response, that means we're getting stackmob data back.
+                  //pass the user back to the user's success callback
+                  result = result['stackmob']['user'];
+                  success(result);  
+                } else {
+                  if (params["stackmob_count"] === true) {
+                    success(response);
+                  } else if (!model.set(result))
+                    return false;
+                  success(model);
+                }
               } else
                 success();
 
@@ -1439,20 +1325,32 @@
             var success = params['success'];
 
             var defaultSuccess = function(response, result, xhr) {
+              var result = response ? JSON.parse(response) : null;
+              
               if (_.isFunction(params['stackmob_on' + method]))
-                params['stackmob_on' + method]();
+                params['stackmob_on' + method](result);
 
-              if (response) {
-                var result = JSON.parse(response);
+              if (result) {
                 model.clear();
-
-                if (params["stackmob_count"] === true) {
-                  success(xhr);
-                } else if (!model.set(result))
-                  return false;
-                success(model);
-              } else
-                success();
+                
+                if (StackMob.isOAuth2Mode() && method === 'accessToken' && result['stackmob']) {
+                  //If we have "stackmob" in the response, that means we're getting stackmob data back.
+                  //pass the user back to the user's success callback
+                  result = result['stackmob']['user'];
+                  success(result);  
+                } else {
+                  //if we're not OAuth 2.0 login, just run the regular success.
+                  if (params["stackmob_count"] === true) {
+                    success(xhr);
+                  } else if (!model.set(result))
+                    return false;
+                  success(model);
+                }
+                
+              } else success();
+                
+                
+                
 
             };
             params['success'] = defaultSuccess;
@@ -1490,6 +1388,26 @@
                 }
               }
             };
+            
+            var err = params['error'];
+
+            params['error'] = function(jqXHR, textStatus,
+                errorThrown) {
+
+              var data;
+
+              if (jqXHR && (jqXHR.responseText || jqXHR.text)) {
+                var result = JSON.parse(jqXHR.responseText
+                    || jqXHR.text);
+                data = result;
+              }
+
+              (function(m, d) {
+                if (err)
+                  err(d);
+              }).call(StackMob, model, data);
+            }
+
             var success = params['success'];
 
             var defaultSuccess = function(model, status, xhr) {
@@ -1510,35 +1428,34 @@
                 result = xhr;
               }
 
+              /**
+               * If there's an internal success callback function, execute it.
+               */
               if (_.isFunction(params['stackmob_on' + method]))
-                params['stackmob_on' + method]();
+                params['stackmob_on' + method](result);
 
               if (success) {
-                success(result);
+                /**
+                 * In OAuth 2.0 mode, a successful login response will have the OAuth 2.0 credentials as well as the full user object in the response.
+                 * But the user's success callback is only expecting the user, so let's deal with that here.
+                 */
+                if (StackMob.isOAuth2Mode() && method === 'accessToken' && result['stackmob']) {
+                  //If we have "stackmob" in the response, that means we're getting stackmob data back.
+                  //pass the user back to the user's success callback
+                  result = result['stackmob']['user'];
+                  success(result);  
+                } else {
+                  //if we're not OAuth 2.0 login, just run the regular success.
+                  success(result);
+                }
+                
               }
 
             };
+            
             params['success'] = defaultSuccess;
 
-            var err = params['error'];
-
-            params['error'] = function(jqXHR, textStatus,
-                errorThrown) {
-
-              var data;
-
-              if (jqXHR && (jqXHR.responseText || jqXHR.text)) {
-                var result = JSON.parse(jqXHR.responseText
-                    || jqXHR.text);
-                data = result;
-              }
-
-              (function(m, d) {
-                if (err)
-                  err(d);
-              }).call(StackMob, model, data);
-            }
-
+            
             return $.ajax(params);
           }
         }
