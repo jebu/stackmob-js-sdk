@@ -983,6 +983,9 @@
                 .get(StackMob.loginField);
             options['data'][StackMob.passwordField] = this
                 .get(StackMob.passwordField);
+            
+            if (StackMob.isOAuth2Mode()) options['data']['token_type'] = 'mac';    
+                
             var user = this;
 
             options['stackmob_onaccessToken'] = function(result) {
