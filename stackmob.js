@@ -80,7 +80,7 @@
         apiVersion : 0,
         
         //The current version of the JS SDK.
-        sdkVersion : "0.5.0",
+        sdkVersion : "0.5.2",
         
         //This holds the application public key when the JS SDK is initialized to connect to StackMob's services via OAuth 2.0.
         publicKey : null,
@@ -178,7 +178,7 @@
         //An internally used method to get the development API URL.
         getDevAPIBase : function() {
 
-            if (PhoneGap) return this.getScheme() + '://api.mob1.stackmob.com/';
+            if (!(typeof PhoneGap === 'undefined')) return this.getScheme() + '://api.mob1.stackmob.com/';
 
             
             //If you've requested a full URL path, then we'll use a full path.  Otherwise we'll use a relative path.
@@ -192,7 +192,7 @@
         //An internally used method to get the production API URL.    
         getProdAPIBase : function() {
         
-            if (PhoneGap) return this.getScheme() + '://api.mob1.stackmob.com/';
+            if (!(typeof PhoneGap === 'undefined')) return this.getScheme() + '://api.mob1.stackmob.com/';
             
             return this.fullURL === true ? this.getScheme() + '://'
             + this.appName + '.' + this.clientSubdomain
@@ -396,7 +396,7 @@
             this.oauth2targetdomain = options['oauth2targetdomain'] || this.oauth2targetdomain || 'www.stackmob.com';
             
             this.secure = options['secure'] === true;
-            this.fullURL = options['fullURL'] === true || PhoneGap || this.fullURL;
+            this.fullURL = options['fullURL'] === true || (typeof PhoneGap === 'undefined') || this.fullURL;
             this.ajax = options['ajax'] || this.ajax;
             this.debug = this.apiVersion === 0;
             
