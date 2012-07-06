@@ -886,21 +886,22 @@
                 + base64EncodedData;
                 this.set(fieldName, binaryValueString);
             },
-           incrementOnSave: function(fieldName, value ) {
-             if( this.attributes[this.idAttribute]) {
-               //if we already have a field by this name declared on our object, remove it (because we are going to create a new one with a [inc] appended
-               if( this.attributes[fieldName] ) {
-                 this.attributes[fieldName] = undefined;
-               }
-               this.set(fieldName + '[inc]', value);
-             } else {
-               StackMob.throwError('Please specify an id for the row you wish to update. When creating a new instance of your object, you need to pass in JSON that includes the id field and value (e.g. var user = new StackMob.User({ username: \'chucknorris\' });)  Or, for custom objects: var todoInstance = new Todo({todo_id : \'1234\'})');
-             }
+            incrementOnSave: function(fieldName, value ) {
+                if( this.attributes[this.idAttribute]) {
+                    //if we already have a field by this name declared on our object, remove it (because we are going to create a new one with a [inc] appended
+                    if( this.attributes[fieldName] ) {
+                        delete this.attributes[fieldName];
+                    }
+                    this.set(fieldName + '[inc]', value);
+                } else {
+                    StackMob.throwError('Please specify an id for the row you wish to update. When creating a new instance of your object, you need to pass in JSON that includes the id field and value (e.g. var user = new StackMob.User({ username: \'chucknorris\' });)  Or, for custom objects: var todoInstance = new Todo({todo_id : \'1234\'})');
+                }
             },
-      
+            
             decrementOnSave: function(fieldName, value) {
-              this.incrementOnSave(fieldName, value * -1) ;
+                this.incrementOnSave(fieldName, value * -1) ;
             }
+            
             
         });
         
