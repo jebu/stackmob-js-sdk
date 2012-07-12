@@ -396,7 +396,7 @@
             this.oauth2targetdomain = options['oauth2targetdomain'] || this.oauth2targetdomain || 'www.stackmob.com';
             
             this.secure = options['secure'] === true;
-            this.fullURL = options['fullURL'] === true || (typeof PhoneGap === 'undefined') || this.fullURL;
+            this.fullURL = options['fullURL'] === true || !(typeof PhoneGap === 'undefined') || this.fullURL;
             this.ajax = options['ajax'] || this.ajax;
             this.debug = this.apiVersion === 0;
             
