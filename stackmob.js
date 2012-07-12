@@ -691,7 +691,7 @@
             }
             
             function _prepareAuth(method, params) {
-                if (model.schemaName == StackMob['userSchema'] && _
+                if (model && model.schemaName && (model.schemaName == StackMob['userSchema']) && _
                 .include([ 'create', 'accessToken' ],
                 method)) {//if you're creating a user or logging in
                     return;
