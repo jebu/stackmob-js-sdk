@@ -204,8 +204,6 @@
 
             /*
              * `apiURL` serves as a way to override the API URL regardless of any other setting.
-             *
-             * FIXME: when not using a full url, it should probably be relative path, not what's currently in the window. 
              */
             return StackMob['apiURL'] || 
             (StackMob['fullURL'] ? 
@@ -213,8 +211,8 @@
             .getDevAPIBase()
             : StackMob.getProdAPIBase())
             : (window.location.protocol + '//'
-            + window.location.hostname + ':'
-            + window.location.port) + '/');
+            + window.location.hostname + (window.location.port ? ':'
+            + window.location.port : '')) + '/');
         },
         
         //The JS SDK calls this to throw an error.
