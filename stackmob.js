@@ -212,7 +212,7 @@
             : StackMob.getProdAPIBase())
             : (window.location.protocol + '//'
             + window.location.hostname + (window.location.port ? ':'
-            + window.location.port : '')) + '/');
+            + window.location.port : ':80')) + '/');
         },
         
         //The JS SDK calls this to throw an error.
